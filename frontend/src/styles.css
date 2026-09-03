@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100 font-sans antialiased min-h-screen selection:bg-brand-500/30 selection:text-brand-300;
+  }
+}
+
+/* Custom modern scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}
+
+/* Theme variations for the reader */
+.theme-light {
+  --reader-bg: #ffffff;
+  --reader-text: #1e293b;
+  --reader-surface: #f8fafc;
+  --reader-border: #e2e8f0;
+}
+.theme-dark {
+  --reader-bg: #0b0f19;
+  --reader-text: #e2e8f0;
+  --reader-surface: #151e2e;
+  --reader-border: #1e293b;
+}
+.theme-sepia {
+  --reader-bg: #f4ede0;
+  --reader-text: #433422;
+  --reader-surface: #eae0d0;
+  --reader-border: #d8cbba;
+}
+.theme-solarized {
+  --reader-bg: #002b36;
+  --reader-text: #93a1a1;
+  --reader-surface: #073642;
+  --reader-border: #586e75;
+}
+
+/* Reader animation styles */
+.reader-canvas-container {
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
