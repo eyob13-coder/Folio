@@ -8,6 +8,7 @@ import { FullTextSearchService } from '../search/search.service';
 import { SyncQueueService } from '../sync/sync-queue.service';
 import { Book, Author, ReadingProgress, FileType, ReadingStatus } from '../models/book.model';
 import { Collection, Tag } from '../models/collection.model';
+import { REAL_BOOKS, REAL_AUTHORS, REAL_COLLECTIONS } from '../document/sample-books.data';
 
 export interface ImportProgress {
   totalFiles: number;
@@ -74,6 +75,25 @@ export class LibraryService {
       await this.refreshLibrary();
       if (this.books().length === 0) {
         await this.seedDemoLibrary();
+      } else {
+        // Automatically upgrade existing books to ensure real authors & SVG covers
+        for (const realBook of REAL_BOOKS) {
+          const existing = this.books().find(b => b.id === realBook.id);
+          if (existing) {
+            await this.bookRepo.updateBook(existing.id, {
+              coverDataUrl: realBook.coverDataUrl,
+              authorIds: realBook.authorIds,
+              authors: realBook.authors,
+              subtitle: realBook.subtitle,
+              description: realBook.description,
+              publisher: realBook.publisher
+            });
+          }
+        }
+        for (const author of REAL_AUTHORS) {
+          await this.bookRepo.saveAuthor(author);
+        }
+        await this.refreshLibrary();
       }
       await this.searchService.buildIndex();
     } finally {
@@ -89,9 +109,21 @@ export class LibraryService {
       this.collectionRepo.getAllTags()
     ]);
 
-    this.books.set(booksList);
-    this.authors.set(authorsList);
-    this.collections.set(collectionsList);
+    const authorMap = new Map<string, Author>();
+    REAL_AUTHORS.forEach(a => authorMap.set(a.id, a));
+    authorsList.forEach(a => authorMap.set(a.id, a));
+
+    const enrichedBooks = booksList.map(book => {
+      const resolved = (book.authorIds || []).map(id => authorMap.get(id)).filter(Boolean) as Author[];
+      return {
+        ...book,
+        authors: (book.authors && book.authors.length > 0) ? book.authors : (resolved.length > 0 ? resolved : undefined)
+      };
+    });
+
+    this.books.set(enrichedBooks);
+    this.authors.set(authorsList.length > 0 ? authorsList : REAL_AUTHORS);
+    this.collections.set(collectionsList.length > 0 ? collectionsList : REAL_COLLECTIONS);
     this.tags.set(tagsList);
 
     // Load progress for all books
@@ -281,107 +313,9 @@ export class LibraryService {
 
   // Pre-seed sample library for instant recruiter evaluation
   async seedDemoLibrary(): Promise<void> {
-    const sampleAuthors: Author[] = [
-      { id: 'auth-1', name: 'Martin Kleppmann', createdAt: new Date().toISOString() },
-      { id: 'auth-2', name: 'Robert C. Martin', createdAt: new Date().toISOString() },
-      { id: 'auth-3', name: 'Alex Xu', createdAt: new Date().toISOString() },
-      { id: 'auth-4', name: 'Brendan Gregg', createdAt: new Date().toISOString() }
-    ];
-    for (const a of sampleAuthors) await this.bookRepo.saveAuthor(a);
-
-    const sampleCollections: Collection[] = [
-      { id: 'col-1', name: 'Distributed Systems', color: '#3b82f6', orderIndex: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: 'col-2', name: 'Software Architecture', color: '#10b981', orderIndex: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: 'col-3', name: 'System Performance', color: '#f59e0b', orderIndex: 2, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-    ];
-    for (const c of sampleCollections) await this.collectionRepo.saveCollection(c);
-
-    const sampleBooks: Book[] = [
-      {
-        id: 'book-ddia',
-        title: 'Designing Data-Intensive Applications',
-        subtitle: 'The Big Ideas Behind Reliable, Scalable, and Maintainable Systems',
-        description: 'Data is at the center of many challenges in system design today. Explore the key principles of distributed data systems, replication, partitioning, and consensus.',
-        language: 'en',
-        publisher: "O'Reilly Media",
-        publicationYear: 2017,
-        pageCount: 560,
-        fileType: 'pdf',
-        fileSize: 14500000,
-        contentHash: 'hash-ddia-prod-sha256-verified-key-99',
-        authorIds: ['auth-1'],
-        collectionIds: ['col-1'],
-        tags: ['#distributed-systems', '#databases', '#consensus', '#scalability'],
-        isFavorite: true,
-        status: 'reading',
-        createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
-        updatedAt: new Date().toISOString(),
-        lastOpenedAt: new Date().toISOString()
-      },
-      {
-        id: 'book-clean-arch',
-        title: 'Clean Architecture',
-        subtitle: "A Craftsman's Guide to Software Structure and Design",
-        description: 'Practical software architecture rules for building modular, maintainable, and testable enterprise applications without framework lock-in.',
-        language: 'en',
-        publisher: 'Prentice Hall',
-        publicationYear: 2018,
-        pageCount: 432,
-        fileType: 'epub',
-        fileSize: 8200000,
-        contentHash: 'hash-clean-arch-prod-sha256-key-88',
-        authorIds: ['auth-2'],
-        collectionIds: ['col-2'],
-        tags: ['#architecture', '#solid-principles', '#design-patterns'],
-        isFavorite: true,
-        status: 'reading',
-        createdAt: new Date(Date.now() - 86400000 * 8).toISOString(),
-        updatedAt: new Date().toISOString(),
-        lastOpenedAt: new Date(Date.now() - 3600000 * 2).toISOString()
-      },
-      {
-        id: 'book-sys-design',
-        title: 'System Design Interview',
-        subtitle: "An Insider's Guide Volume 2",
-        description: 'Deep dive into real-world architecture questions: distributed message queues, metrics collectors, ad click aggregators, and search autocomplete.',
-        language: 'en',
-        publisher: 'ByteByteGo',
-        publicationYear: 2022,
-        pageCount: 380,
-        fileType: 'pdf',
-        fileSize: 11200000,
-        contentHash: 'hash-sys-design-prod-sha256-key-77',
-        authorIds: ['auth-3'],
-        collectionIds: ['col-1'],
-        tags: ['#system-design', '#microservices', '#interview-prep'],
-        isFavorite: false,
-        status: 'unread',
-        createdAt: new Date(Date.now() - 86400000 * 12).toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: 'book-sys-perf',
-        title: 'Systems Performance',
-        subtitle: 'Enterprise and the Cloud',
-        description: 'Covers observability, CPU architectures, disk I/O, memory bottlenecks, network latency, and eBPF tracing tools for modern cloud infrastructure.',
-        language: 'en',
-        publisher: 'Addison-Wesley',
-        publicationYear: 2020,
-        pageCount: 780,
-        fileType: 'epub',
-        fileSize: 16800000,
-        contentHash: 'hash-sys-perf-prod-sha256-key-66',
-        authorIds: ['auth-4'],
-        collectionIds: ['col-3'],
-        tags: ['#performance', '#linux', '#ebpf', '#observability'],
-        isFavorite: false,
-        status: 'completed',
-        createdAt: new Date(Date.now() - 86400000 * 20).toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-    ];
-
-    for (const b of sampleBooks) await this.bookRepo.saveBook(b);
+    for (const a of REAL_AUTHORS) await this.bookRepo.saveAuthor(a);
+    for (const c of REAL_COLLECTIONS) await this.collectionRepo.saveCollection(c);
+    for (const b of REAL_BOOKS) await this.bookRepo.saveBook(b);
 
     // Seed Reading Progress
     const ddiaProgress: ReadingProgress = {

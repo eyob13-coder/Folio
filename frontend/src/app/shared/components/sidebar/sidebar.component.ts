@@ -20,7 +20,7 @@ import {
   standalone: true,
   imports: [CommonModule, RouterLink, RouterLinkActive, LucideAngularModule],
   template: `
-    <aside class="w-64 h-[calc(100vh-4rem)] border-r border-slate-800/80 bg-slate-950/40 p-4 flex flex-col justify-between overflow-y-auto">
+    <aside class="w-64 h-full shrink-0 border-r border-slate-800/80 bg-slate-950/40 p-4 flex flex-col justify-between overflow-y-auto">
       <div class="space-y-6">
         <!-- Main Navigation Links -->
         <nav class="space-y-1">
