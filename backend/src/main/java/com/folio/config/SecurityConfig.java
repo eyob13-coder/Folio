@@ -16,9 +16,10 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .cors(cors -> {})
+            .headers(headers -> headers.frameOptions(frame -> frame.disable()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/auth/**", "/api/v1/sync/**", "/actuator/**", "/api/v1/books/**").permitAll()
+                .requestMatchers("/api/v1/auth/**", "/api/v1/sync/**", "/actuator/**", "/api/v1/books/**", "/h2-console/**").permitAll()
                 .anyRequest().authenticated()
             );
         return http.build();
