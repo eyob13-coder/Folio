@@ -93,8 +93,8 @@ import {
           <div class="space-y-1">
             @for (col of libraryService.collections(); track col.id) {
               <a 
-                [routerLink]="['/collections', col.id]"
-                routerLinkActive="bg-brand-500/10 text-brand-400 border-brand-500/30"
+                [routerLink]="['/']"
+                [queryParams]="{ collection: col.id }"
                 class="flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs text-slate-300 hover:text-white hover:bg-slate-900 border border-transparent transition-all">
                 <span class="w-2.5 h-2.5 rounded-full" [style.backgroundColor]="col.color || '#22c55e'"></span>
                 <span class="truncate">{{ col.name }}</span>
@@ -114,9 +114,12 @@ import {
             </div>
             <div class="flex flex-wrap gap-1.5 px-2">
               @for (tag of allTags(); track tag) {
-                <span class="text-[11px] font-mono px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200 cursor-pointer transition-colors">
+                <a 
+                  [routerLink]="['/']"
+                  [queryParams]="{ tag: tag.replace('#', '') }"
+                  class="text-[11px] font-mono px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-slate-400 hover:border-brand-500/50 hover:text-brand-300 cursor-pointer transition-colors">
                   {{ tag }}
-                </span>
+                </a>
               }
             </div>
           </div>

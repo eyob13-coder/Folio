@@ -1,13 +1,13 @@
-import { Component, inject, signal, computed, output } from '@angular/core';
+import { Component, inject, signal, computed, output, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { LibraryService } from '../../../core/services/library.service';
 import { StatsBarComponent } from '../stats-bar/stats-bar.component';
 import { FilterBarComponent } from '../filter-bar/filter-bar.component';
 import { BookCardComponent } from '../book-card/book-card.component';
 import { BookDetailModalComponent } from '../book-detail-modal/book-detail-modal.component';
 import { Book } from '../../../core/models/book.model';
-import { LucideAngularModule, Plus, BookOpen, Sparkles, Heart } from 'lucide-angular';
+import { LucideAngularModule, Plus, BookOpen, Sparkles, Heart, X } from 'lucide-angular';
 
 @Component({
   selector: 'app-dashboard',
@@ -25,8 +25,8 @@ import { LucideAngularModule, Plus, BookOpen, Sparkles, Heart } from 'lucide-ang
       <!-- Top Stats Bar -->
       <app-stats-bar></app-stats-bar>
 
-      <!-- Continue Reading Section (if any books in progress) -->
-      @if (continueReadingBooks().length > 0 && selectedFilter() === 'all') {
+      <!-- Continue Reading Section -->
+      @if (continueReadingBooks().length > 0 && selectedFilter() === 'all' && !activeCollectionId() && !activeTag()) {
         <section class="space-y-3">
           <div class="flex items-center justify-between">
             <h2 class="text-base font-bold text-white flex items-center gap-2">
@@ -51,7 +51,22 @@ import { LucideAngularModule, Plus, BookOpen, Sparkles, Heart } from 'lucide-ang
       <!-- Main Library Section -->
       <section class="space-y-4 pt-2">
         <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-          <h2 class="text-lg font-bold text-white tracking-tight">Your Books</h2>
+          <div class="flex items-center gap-3">
+            <h2 class="text-lg font-bold text-white tracking-tight">Your Books</h2>
+            @if (activeCollection(); as col) {
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs bg-slate-900 border border-slate-700 text-slate-200">
+                <span class="w-2 h-2 rounded-full" [style.backgroundColor]="col.color"></span>
+                <span>{{ col.name }}</span>
+                <button (click)="clearCollectionFilter()" class="hover:text-rose-400 ml-1">✕</button>
+              </span>
+            }
+            @if (activeTag(); as tag) {
+              <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs bg-slate-900 border border-slate-700 text-slate-200 font-mono">
+                <span>{{ tag }}</span>
+                <button (click)="clearTagFilter()" class="hover:text-rose-400 ml-1">✕</button>
+              </span>
+            }
+          </div>
           <button 
             (click)="openImport.emit()"
             class="px-3 py-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl text-xs font-medium text-slate-300 hover:text-white flex items-center gap-1.5 transition-colors">
@@ -112,8 +127,11 @@ import { LucideAngularModule, Plus, BookOpen, Sparkles, Heart } from 'lucide-ang
     </div>
   `
 })
-export class DashboardComponent {
+export class DashboardComponent implements OnInit {
   readonly libraryService = inject(LibraryService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+
   readonly openImport = output<void>();
   readonly openAIChat = output<Book>();
 
@@ -123,10 +141,20 @@ export class DashboardComponent {
   readonly sortBy = signal<string>('recent');
   readonly viewMode = signal<'grid' | 'list'>('grid');
 
+  readonly activeCollectionId = signal<string | null>(null);
+  readonly activeTag = signal<string | null>(null);
+
   readonly BookOpenIcon = BookOpen;
   readonly PlusIcon = Plus;
   readonly SparklesIcon = Sparkles;
   readonly HeartIcon = Heart;
+  readonly XIcon = X;
+
+  readonly activeCollection = computed(() => {
+    const id = this.activeCollectionId();
+    if (!id) return null;
+    return this.libraryService.collections().find(c => c.id === id) || null;
+  });
 
   readonly continueReadingBooks = computed(() => {
     return this.libraryService.books()
@@ -134,8 +162,41 @@ export class DashboardComponent {
       .slice(0, 5);
   });
 
+  ngOnInit(): void {
+    this.route.url.subscribe(segments => {
+      const path = segments.map(s => s.path).join('/');
+      if (path === 'favorites') this.selectedFilter.set('favorites');
+      else if (path === 'reading') this.selectedFilter.set('reading');
+    });
+
+    this.route.queryParams.subscribe(params => {
+      this.activeCollectionId.set(params['collection'] || null);
+      this.activeTag.set(params['tag'] || null);
+    });
+  }
+
+  clearCollectionFilter(): void {
+    this.activeCollectionId.set(null);
+    this.router.navigate([], { queryParams: { collection: null }, queryParamsHandling: 'merge' });
+  }
+
+  clearTagFilter(): void {
+    this.activeTag.set(null);
+    this.router.navigate([], { queryParams: { tag: null }, queryParamsHandling: 'merge' });
+  }
+
   readonly filteredBooks = computed(() => {
     let list = [...this.libraryService.books()];
+
+    const colId = this.activeCollectionId();
+    if (colId) {
+      list = list.filter(b => b.collectionIds && b.collectionIds.includes(colId));
+    }
+
+    const tag = this.activeTag();
+    if (tag) {
+      list = list.filter(b => b.tags && b.tags.some(t => t.toLowerCase().includes(tag.toLowerCase())));
+    }
 
     if (this.selectedFilter() === 'reading') list = list.filter(b => b.status === 'reading');
     else if (this.selectedFilter() === 'unread') list = list.filter(b => b.status === 'unread');
@@ -148,6 +209,9 @@ export class DashboardComponent {
 
     if (this.sortBy() === 'title') {
       list.sort((a, b) => a.title.localeCompare(b.title));
+    } else if (this.sortBy() === 'progress') {
+      const pMap = this.libraryService.progressMap();
+      list.sort((a, b) => (pMap.get(b.id)?.percentage || 0) - (pMap.get(a.id)?.percentage || 0));
     } else if (this.sortBy() === 'recent') {
       list.sort((a, b) => new Date(b.lastOpenedAt || b.updatedAt).getTime() - new Date(a.lastOpenedAt || a.updatedAt).getTime());
     }

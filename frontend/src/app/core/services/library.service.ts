@@ -384,6 +384,14 @@ export class LibraryService {
         chapterTitle: 'Chapter 2: Back-of-the-envelope Estimation',
         text: 'Understanding latency numbers every programmer should know: L1 cache reference is 0.5 ns, Branch mispredict is 5 ns, Mutex lock/unlock is 100 ns, Main memory reference is 100 ns, Read 1 MB sequentially from memory is 3,000 ns (3 µs), SSD random read is 16,000 ns (16 µs), Send 1 MB over 1 Gbps network is 10,000,000 ns (10 ms).',
         tokenCount: 75
+      },
+      {
+        id: 'chunk-perf-1',
+        bookId: 'book-sys-perf',
+        pageNumber: 210,
+        chapterTitle: 'Chapter 6: Modern eBPF Tracing & Flame Graphs',
+        text: 'Extended Berkeley Packet Filter (eBPF) allows running sandboxed programs in the Linux kernel without changing kernel source code. Flame Graphs visualize profiled CPU stack traces where the x-axis represents sample population and y-axis shows stack depth. Wider boxes indicate more CPU time consumed.',
+        tokenCount: 65
       }
     ];
 

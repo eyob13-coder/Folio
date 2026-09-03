@@ -7,6 +7,7 @@ import { PdfReaderComponent } from '../pdf-reader/pdf-reader.component';
 import { EpubReaderComponent } from '../epub-reader/epub-reader.component';
 import { AnnotationsDrawerComponent } from '../annotations-drawer/annotations-drawer.component';
 import { RagChatModalComponent } from '../../ai-chat/rag-chat-modal/rag-chat-modal.component';
+import { ChapterReaderComponent } from '../chapter-reader/chapter-reader.component';
 import { Book } from '../../../core/models/book.model';
 import { ReaderTheme } from '../../../core/models/settings.model';
 
@@ -19,7 +20,8 @@ import { ReaderTheme } from '../../../core/models/settings.model';
     PdfReaderComponent,
     EpubReaderComponent,
     AnnotationsDrawerComponent,
-    RagChatModalComponent
+    RagChatModalComponent,
+    ChapterReaderComponent
   ],
   template: `
     @if (readerService.currentBook(); as book) {
@@ -37,21 +39,25 @@ import { ReaderTheme } from '../../../core/models/settings.model';
 
         <!-- Main Body -->
         <div class="flex-1 flex overflow-hidden relative">
-          <!-- Active Format Reader -->
-          @if (book.fileType === 'pdf') {
-            <app-pdf-reader 
-              [book]="book"
-              [fileData]="fileBinary()"
-              [initialPage]="readerService.currentPage()"
-              (pageChange)="onPdfPageChange($event)"
-              (totalPagesChange)="onPdfTotalPagesChange($event)">
-            </app-pdf-reader>
+          <!-- Active Reader -->
+          @if (fileBinary()) {
+            @if (book.fileType === 'pdf') {
+              <app-pdf-reader 
+                [book]="book"
+                [fileData]="fileBinary()"
+                [initialPage]="readerService.currentPage()"
+                (pageChange)="onPdfPageChange($event)"
+                (totalPagesChange)="onPdfTotalPagesChange($event)">
+              </app-pdf-reader>
+            } @else {
+              <app-epub-reader 
+                [book]="book"
+                [fileData]="fileBinary()"
+                (pageChange)="onEpubPageChange($event)">
+              </app-epub-reader>
+            }
           } @else {
-            <app-epub-reader 
-              [book]="book"
-              [fileData]="fileBinary()"
-              (pageChange)="onEpubPageChange($event)">
-            </app-epub-reader>
+            <app-chapter-reader [book]="book"></app-chapter-reader>
           }
 
           <!-- Side Drawer (Annotations/TOC) -->
