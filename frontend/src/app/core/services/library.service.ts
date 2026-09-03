@@ -90,6 +90,9 @@ export class LibraryService {
             });
           }
         }
+        // Clear previously seeded fake progress so user starts fresh at 0 pages read
+        await this.bookRepo.deleteProgress('prog-ddia');
+        await this.bookRepo.deleteProgress('prog-clean-arch');
         for (const author of REAL_AUTHORS) {
           await this.bookRepo.saveAuthor(author);
         }
@@ -316,32 +319,6 @@ export class LibraryService {
     for (const a of REAL_AUTHORS) await this.bookRepo.saveAuthor(a);
     for (const c of REAL_COLLECTIONS) await this.collectionRepo.saveCollection(c);
     for (const b of REAL_BOOKS) await this.bookRepo.saveBook(b);
-
-    // Seed Reading Progress
-    const ddiaProgress: ReadingProgress = {
-      id: 'prog-ddia',
-      bookId: 'book-ddia',
-      currentPage: 334,
-      totalPages: 560,
-      percentage: 60,
-      scrollPosition: 0,
-      zoomLevel: 100,
-      lastReadAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    await this.bookRepo.saveProgress(ddiaProgress);
-
-    const cleanArchProgress: ReadingProgress = {
-      id: 'prog-clean-arch',
-      bookId: 'book-clean-arch',
-      currentPage: 127,
-      totalPages: 432,
-      percentage: 29,
-      chapter: 'Chapter 14: Component Coupling',
-      lastReadAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    await this.bookRepo.saveProgress(cleanArchProgress);
 
     // Seed Deep Chunks for Local RAG & Full-Text Search
     const sampleChunks = [

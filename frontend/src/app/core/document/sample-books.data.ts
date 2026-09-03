@@ -61,11 +61,10 @@ export const REAL_BOOKS: Book[] = [
     authors: [REAL_AUTHORS[0]],
     collectionIds: ['col-1'],
     tags: ['#distributed-systems', '#databases', '#consensus', '#scalability'],
-    isFavorite: true,
-    status: 'reading',
+    isFavorite: false,
+    status: 'unread',
     createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
-    updatedAt: new Date().toISOString(),
-    lastOpenedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString()
   },
   {
     id: 'book-clean-arch',
@@ -84,11 +83,10 @@ export const REAL_BOOKS: Book[] = [
     authors: [REAL_AUTHORS[1]],
     collectionIds: ['col-2'],
     tags: ['#architecture', '#solid-principles', '#design-patterns'],
-    isFavorite: true,
-    status: 'reading',
+    isFavorite: false,
+    status: 'unread',
     createdAt: new Date(Date.now() - 86400000 * 8).toISOString(),
-    updatedAt: new Date().toISOString(),
-    lastOpenedAt: new Date(Date.now() - 3600000 * 2).toISOString()
+    updatedAt: new Date().toISOString()
   },
   {
     id: 'book-sys-design',

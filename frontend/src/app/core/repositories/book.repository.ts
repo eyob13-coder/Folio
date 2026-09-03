@@ -63,6 +63,10 @@ export class BookRepository {
     await this.storage.set<ReadingProgress>(STORES.READING_PROGRESS, progress.id, progress);
   }
 
+  async deleteProgress(id: string): Promise<void> {
+    await this.storage.delete(STORES.READING_PROGRESS, id);
+  }
+
   // Chunks for Search / AI RAG
   async saveChunks(chunks: DocumentChunk[]): Promise<void> {
     for (const chunk of chunks) {
