@@ -1,0 +1,80 @@
+import { Component, signal, HostListener } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterOutlet } from '@angular/router';
+import { NavbarComponent } from './shared/components/navbar/navbar.component';
+import { SidebarComponent } from './shared/components/sidebar/sidebar.component';
+import { SearchModalComponent } from './features/search/search-modal/search-modal.component';
+import { ImportModalComponent } from './features/import/import-modal/import-modal.component';
+import { RagChatModalComponent } from './features/ai-chat/rag-chat-modal/rag-chat-modal.component';
+import { Book } from './core/models/book.model';
+
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [
+    CommonModule, 
+    RouterOutlet, 
+    NavbarComponent, 
+    SidebarComponent, 
+    SearchModalComponent, 
+    ImportModalComponent,
+    RagChatModalComponent
+  ],
+  template: `
+    <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-brand-500/30 selection:text-brand-300">
+      <!-- Navbar -->
+      <app-navbar 
+        (openSearch)="isSearchOpen.set(true)"
+        (openImport)="isImportOpen.set(true)">
+      </app-navbar>
+
+      <!-- Main Layout -->
+      <div class="flex-1 flex overflow-hidden">
+        <!-- Sidebar -->
+        <app-sidebar class="hidden md:block"></app-sidebar>
+
+        <!-- Dynamic Content Router Area -->
+        <main class="flex-1 overflow-y-auto bg-slate-950">
+          <router-outlet 
+            (activate)="onRouteActivated($event)">
+          </router-outlet>
+        </main>
+      </div>
+
+      <!-- Global Modals -->
+      @if (isSearchOpen()) {
+        <app-search-modal (close)="isSearchOpen.set(false)"></app-search-modal>
+      }
+
+      @if (isImportOpen()) {
+        <app-import-modal (close)="isImportOpen.set(false)"></app-import-modal>
+      }
+
+      @if (activeAIBook()) {
+        <app-rag-chat-modal [book]="activeAIBook()!" (close)="activeAIBook.set(null)"></app-rag-chat-modal>
+      }
+    </div>
+  `
+})
+export class AppComponent {
+  readonly isSearchOpen = signal<boolean>(false);
+  readonly isImportOpen = signal<boolean>(false);
+  readonly activeAIBook = signal<Book | null>(null);
+
+  @HostListener('window:keydown', ['$event'])
+  handleKeyboardShortcuts(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      this.isSearchOpen.update(v => !v);
+    }
+  }
+
+  onRouteActivated(componentRef: any): void {
+    if (componentRef?.openImport) {
+      componentRef.openImport.subscribe(() => this.isImportOpen.set(true));
+    }
+    if (componentRef?.openAIChat) {
+      componentRef.openAIChat.subscribe((book: Book) => this.activeAIBook.set(book));
+    }
+  }
+}
