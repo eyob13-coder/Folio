@@ -18,7 +18,7 @@ public class SecurityConfig {
             .cors(cors -> {})
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/sync/**", "/actuator/**", "/api/v1/books/**").permitAll()
+                .requestMatchers("/api/v1/auth/**", "/api/v1/sync/**", "/actuator/**", "/api/v1/books/**").permitAll()
                 .anyRequest().authenticated()
             );
         return http.build();

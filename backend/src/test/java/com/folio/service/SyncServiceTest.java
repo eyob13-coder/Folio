@@ -2,7 +2,6 @@ package com.folio.service;
 
 import com.folio.dto.SyncItemDto;
 import com.folio.entity.SyncLogEntity;
-import com.folio.repository.BookRepository;
 import com.folio.repository.SyncLogRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,9 +21,6 @@ import static org.mockito.Mockito.*;
 class SyncServiceTest {
 
     @Mock
-    private BookRepository bookRepository;
-
-    @Mock
     private SyncLogRepository syncLogRepository;
 
     @InjectMocks
@@ -40,16 +36,34 @@ class SyncServiceTest {
     @Test
     void testProcessBatch_AlreadyProcessed_SkipsExecution() {
         String actionId = UUID.randomUUID().toString();
-        when(syncLogRepository.existsByActionId(actionId)).thenReturn(true);
+        when(syncLogRepository.existsByIdempotencyKey(actionId)).thenReturn(true);
 
         SyncItemDto item = new SyncItemDto();
-        item.setActionId(actionId);
-        item.setActionType("CREATE_BOOK");
+        item.setId(actionId);
+        item.setAction("CREATE_BOOK");
 
         List<SyncItemDto> processed = syncService.processBatch(userId, List.of(item));
 
         assertEquals(1, processed.size());
         assertEquals("SKIPPED_DUPLICATE", processed.get(0).getStatus());
         verify(syncLogRepository, never()).save(any(SyncLogEntity.class));
+    }
+
+    @Test
+    void testProcessBatch_NewItem_SavesLogAndSyncs() {
+        String actionId = UUID.randomUUID().toString();
+        when(syncLogRepository.existsByIdempotencyKey(actionId)).thenReturn(false);
+
+        SyncItemDto item = new SyncItemDto();
+        item.setId(actionId);
+        item.setAction("UPDATE_PROGRESS");
+        item.setEntityType("book");
+        item.setEntityId(UUID.randomUUID());
+
+        List<SyncItemDto> processed = syncService.processBatch(userId, List.of(item));
+
+        assertEquals(1, processed.size());
+        assertEquals("SYNCED", processed.get(0).getStatus());
+        verify(syncLogRepository, times(1)).save(any(SyncLogEntity.class));
     }
 }

@@ -10,4 +10,8 @@ import java.util.UUID;
 @Repository
 public interface SyncLogRepository extends JpaRepository<SyncLogEntity, UUID> {
     Optional<SyncLogEntity> findByIdempotencyKey(String idempotencyKey);
+    boolean existsByIdempotencyKey(String idempotencyKey);
+    default boolean existsByActionId(String actionId) {
+        return existsByIdempotencyKey(actionId);
+    }
 }
