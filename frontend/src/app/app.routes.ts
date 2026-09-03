@@ -30,6 +30,14 @@ export const routes: Routes = [
     loadComponent: () => import('./features/settings/settings-view/settings-view.component').then(m => m.SettingsViewComponent)
   },
   {
+    path: 'collections',
+    loadComponent: () => import('./features/collections/collection-manager/collection-manager.component').then(m => m.CollectionManagerComponent)
+  },
+  {
+    path: 'annotations',
+    loadComponent: () => import('./features/annotations/annotations-browser/annotations-browser.component').then(m => m.AnnotationsBrowserComponent)
+  },
+  {
     path: '**',
     redirectTo: ''
   }
