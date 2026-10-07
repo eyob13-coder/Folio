@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Handles user registration, authentication, and profile retrieval.
@@ -30,21 +31,23 @@ public class AuthService {
                                 String avatarUrl, String token, Instant expiresAt) {}
 
     public AuthResponse register(String email, String password, String displayName) {
-        if (userRepository.existsByEmail(email)) {
+        String normalizedEmail = email.toLowerCase().trim();
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new IllegalArgumentException("An account with this email already exists");
         }
 
         UserEntity user = new UserEntity();
-        user.setEmail(email.toLowerCase().trim());
+        user.setEmail(normalizedEmail);
+        user.setUsername(normalizedEmail.split("@")[0]);
         user.setPasswordHash(passwordEncoder.encode(password));
-        user.setDisplayName(displayName != null ? displayName : email.split("@")[0]);
+        user.setDisplayName(displayName != null && !displayName.isBlank() ? displayName.trim() : normalizedEmail.split("@")[0]);
         user.setLastLoginAt(Instant.now());
         user = userRepository.save(user);
 
-        String token = jwtService.generateToken(user.getId(), user.getEmail());
+        String token = jwtService.generateToken(user.getId().toString(), user.getEmail());
         Instant expiresAt = Instant.now().plusSeconds(86400);
 
-        return new AuthResponse(user.getId(), user.getEmail(),
+        return new AuthResponse(user.getId().toString(), user.getEmail(),
                 user.getDisplayName(), user.getAvatarUrl(), token, expiresAt);
     }
 
@@ -59,25 +62,36 @@ public class AuthService {
         user.setLastLoginAt(Instant.now());
         userRepository.save(user);
 
-        String token = jwtService.generateToken(user.getId(), user.getEmail());
+        String token = jwtService.generateToken(user.getId().toString(), user.getEmail());
         Instant expiresAt = Instant.now().plusSeconds(86400);
 
-        return new AuthResponse(user.getId(), user.getEmail(),
+        return new AuthResponse(user.getId().toString(), user.getEmail(),
                 user.getDisplayName(), user.getAvatarUrl(), token, expiresAt);
     }
 
     public Optional<UserEntity> findById(String userId) {
-        return userRepository.findById(userId);
+        try {
+            return userRepository.findById(UUID.fromString(userId));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
     }
 
     public AuthResponse refreshToken(String userId) {
-        UserEntity user = userRepository.findById(userId)
+        UUID uid;
+        try {
+            uid = UUID.fromString(userId);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid user ID format");
+        }
+
+        UserEntity user = userRepository.findById(uid)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        String token = jwtService.generateToken(user.getId(), user.getEmail());
+        String token = jwtService.generateToken(user.getId().toString(), user.getEmail());
         Instant expiresAt = Instant.now().plusSeconds(86400);
 
-        return new AuthResponse(user.getId(), user.getEmail(),
+        return new AuthResponse(user.getId().toString(), user.getEmail(),
                 user.getDisplayName(), user.getAvatarUrl(), token, expiresAt);
     }
 }

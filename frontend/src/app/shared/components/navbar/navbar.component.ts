@@ -2,7 +2,8 @@ import { Component, inject, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { SyncQueueService } from '../../../core/sync/sync-queue.service';
-import { LucideAngularModule, Search, UploadCloud, SlidersHorizontal } from 'lucide-angular';
+import { AuthService } from '../../../core/services/auth.service';
+import { LucideAngularModule, Search, UploadCloud, SlidersHorizontal, User } from 'lucide-angular';
 
 @Component({
   selector: 'app-navbar',
@@ -86,16 +87,37 @@ import { LucideAngularModule, Search, UploadCloud, SlidersHorizontal } from 'luc
           title="Settings">
           <lucide-icon [img]="SettingsIcon" class="w-4 h-4"></lucide-icon>
         </a>
+
+        <!-- User / Auth Profile Button -->
+        <button 
+          (click)="openAuth.emit()"
+          class="h-9 px-2.5 sm:px-3 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl flex items-center gap-2 text-xs transition-colors group"
+          [title]="authService.isAuthenticated() ? 'Account: ' + authService.currentUser()?.displayName : 'Sign In / Account'">
+          @if (authService.isAuthenticated()) {
+            <div class="w-5 h-5 rounded-full bg-brand-500 text-slate-950 font-bold text-[10px] flex items-center justify-center">
+              {{ (authService.currentUser()?.displayName || 'U').slice(0, 1).toUpperCase() }}
+            </div>
+            <span class="text-white font-medium hidden sm:inline truncate max-w-[90px]">
+              {{ authService.currentUser()?.displayName }}
+            </span>
+          } @else {
+            <lucide-icon [img]="UserIcon" class="w-4 h-4 text-slate-400 group-hover:text-brand-400 transition-colors"></lucide-icon>
+            <span class="text-slate-300 hidden sm:inline">Sign In</span>
+          }
+        </button>
       </div>
     </header>
   `
 })
 export class NavbarComponent {
   readonly syncService = inject(SyncQueueService);
+  readonly authService = inject(AuthService);
   readonly openSearch = output<void>();
   readonly openImport = output<void>();
+  readonly openAuth = output<void>();
 
   readonly SearchIcon = Search;
   readonly UploadCloudIcon = UploadCloud;
   readonly SettingsIcon = SlidersHorizontal;
+  readonly UserIcon = User;
 }

@@ -6,6 +6,7 @@ import { SidebarComponent } from './shared/components/sidebar/sidebar.component'
 import { SearchModalComponent } from './features/search/search-modal/search-modal.component';
 import { ImportModalComponent } from './features/import/import-modal/import-modal.component';
 import { RagChatModalComponent } from './features/ai-chat/rag-chat-modal/rag-chat-modal.component';
+import { AuthModalComponent } from './features/auth/auth-modal/auth-modal.component';
 import { Book } from './core/models/book.model';
 
 @Component({
@@ -18,7 +19,8 @@ import { Book } from './core/models/book.model';
     SidebarComponent, 
     SearchModalComponent, 
     ImportModalComponent,
-    RagChatModalComponent
+    RagChatModalComponent,
+    AuthModalComponent
   ],
   template: `
     <div class="h-screen max-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans overflow-hidden selection:bg-brand-500/30 selection:text-brand-300">
@@ -26,7 +28,8 @@ import { Book } from './core/models/book.model';
       <app-navbar 
         class="shrink-0 z-30"
         (openSearch)="isSearchOpen.set(true)"
-        (openImport)="isImportOpen.set(true)">
+        (openImport)="isImportOpen.set(true)"
+        (openAuth)="isAuthOpen.set(true)">
       </app-navbar>
 
       <!-- Main Layout -->
@@ -51,6 +54,10 @@ import { Book } from './core/models/book.model';
         <app-import-modal (close)="isImportOpen.set(false)"></app-import-modal>
       }
 
+      @if (isAuthOpen()) {
+        <app-auth-modal (close)="isAuthOpen.set(false)"></app-auth-modal>
+      }
+
       @if (activeAIBook()) {
         <app-rag-chat-modal [book]="activeAIBook()!" (close)="activeAIBook.set(null)"></app-rag-chat-modal>
       }
@@ -60,6 +67,7 @@ import { Book } from './core/models/book.model';
 export class AppComponent {
   readonly isSearchOpen = signal<boolean>(false);
   readonly isImportOpen = signal<boolean>(false);
+  readonly isAuthOpen = signal<boolean>(false);
   readonly activeAIBook = signal<Book | null>(null);
 
   @HostListener('window:keydown', ['$event'])

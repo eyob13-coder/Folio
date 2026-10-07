@@ -1,0 +1,19 @@
+server:
+  port: 8080
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+management:
+  endpoint:
+    health:
+      show-details: when_authorized

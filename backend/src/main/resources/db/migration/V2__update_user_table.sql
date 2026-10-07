@@ -1,0 +1,5 @@
+-- V2: Align users table with production UserEntity
+ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(100);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE users ALTER COLUMN username DROP NOT NULL;
