@@ -48,24 +48,6 @@ import { LucideAngularModule, Plus, BookOpen, Sparkles, Heart, X } from 'lucide-
         </section>
       }
 
-      <!-- Sample Data Banner (Shown when demo books are loaded) -->
-      @if (hasDemoBooks()) {
-        <div class="p-3.5 bg-brand-500/10 border border-brand-500/20 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-          <div class="flex items-center gap-2.5 text-brand-300">
-            <lucide-icon [img]="SparklesIcon" class="w-4 h-4 text-brand-400 shrink-0"></lucide-icon>
-            <span>You are viewing the pre-seeded sample library. Ready to use your own private books?</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <button 
-              (click)="clearDemoData()"
-              class="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-xl font-medium transition-all flex items-center gap-1.5 shrink-0">
-              <lucide-icon [img]="XIcon" class="w-3.5 h-3.5"></lucide-icon>
-              <span>Remove Mock Data</span>
-            </button>
-          </div>
-        </div>
-      }
-
       <!-- Main Library Section -->
       <section class="space-y-4 pt-2">
         <div class="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -85,23 +67,12 @@ import { LucideAngularModule, Plus, BookOpen, Sparkles, Heart, X } from 'lucide-
               </span>
             }
           </div>
-          <div class="flex items-center gap-2">
-            @if (hasDemoBooks()) {
-              <button 
-                (click)="clearDemoData()"
-                class="px-3 py-1.5 bg-slate-900 hover:bg-rose-500/10 border border-slate-800 hover:border-rose-500/30 rounded-xl text-xs font-medium text-slate-400 hover:text-rose-300 flex items-center gap-1.5 transition-colors"
-                title="Clear pre-seeded sample books">
-                <lucide-icon [img]="XIcon" class="w-3.5 h-3.5"></lucide-icon>
-                <span class="hidden sm:inline">Clear Mock Books</span>
-              </button>
-            }
-            <button 
-              (click)="openImport.emit()"
-              class="px-3 py-1.5 bg-brand-600 hover:bg-brand-500 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-md shadow-brand-600/20">
-              <lucide-icon [img]="PlusIcon" class="w-3.5 h-3.5"></lucide-icon>
-              <span>Add Books</span>
-            </button>
-          </div>
+          <button 
+            (click)="openImport.emit()"
+            class="px-3.5 py-2 bg-brand-600 hover:bg-brand-500 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-md shadow-brand-600/20 active:scale-95">
+            <lucide-icon [img]="PlusIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <span>Import Books</span>
+          </button>
         </div>
 
         <!-- Filters & View Mode -->
@@ -127,7 +98,7 @@ import { LucideAngularModule, Plus, BookOpen, Sparkles, Heart, X } from 'lucide-
           </div>
         } @else {
           <!-- Empty State -->
-          <div class="text-center py-16 px-4 bg-slate-900/30 border border-slate-800/60 rounded-3xl space-y-4">
+          <div class="text-center py-20 px-4 bg-slate-900/30 border border-slate-800/60 rounded-3xl space-y-4">
             <div class="w-14 h-14 rounded-2xl bg-slate-800 text-brand-400 flex items-center justify-center mx-auto shadow-inner">
               <lucide-icon [img]="BookOpenIcon" class="w-7 h-7"></lucide-icon>
             </div>
@@ -135,18 +106,12 @@ import { LucideAngularModule, Plus, BookOpen, Sparkles, Heart, X } from 'lucide-
               <h3 class="font-bold text-lg text-white">Your library is clean & empty</h3>
               <p class="text-xs text-slate-400 max-w-md mx-auto mt-1">Import your own EPUB or PDF documents to read offline and chat with Local RAG AI.</p>
             </div>
-            <div class="flex items-center justify-center gap-3 pt-2">
+            <div class="pt-2">
               <button 
                 (click)="openImport.emit()"
-                class="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-slate-950 font-bold text-xs rounded-xl inline-flex items-center gap-2 shadow-lg shadow-brand-600/20">
+                class="px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-slate-950 font-bold text-xs rounded-xl inline-flex items-center gap-2 shadow-lg shadow-brand-600/20 active:scale-95 transition-all">
                 <lucide-icon [img]="PlusIcon" class="w-4 h-4"></lucide-icon>
-                <span>Import Your Books</span>
-              </button>
-              <button 
-                (click)="loadDemoData()"
-                class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs rounded-xl inline-flex items-center gap-2 border border-slate-700">
-                <lucide-icon [img]="SparklesIcon" class="w-4 h-4 text-brand-400"></lucide-icon>
-                <span>Load Sample Starter Library</span>
+                <span>Import Your First Book</span>
               </button>
             </div>
           </div>
@@ -186,18 +151,6 @@ export class DashboardComponent implements OnInit {
   readonly SparklesIcon = Sparkles;
   readonly HeartIcon = Heart;
   readonly XIcon = X;
-
-  readonly hasDemoBooks = computed(() => {
-    return this.libraryService.books().some(b => b.id.startsWith('book-'));
-  });
-
-  async clearDemoData(): Promise<void> {
-    await this.libraryService.clearDemoLibrary();
-  }
-
-  async loadDemoData(): Promise<void> {
-    await this.libraryService.loadDemoLibrary();
-  }
 
   readonly activeCollection = computed(() => {
     const id = this.activeCollectionId();

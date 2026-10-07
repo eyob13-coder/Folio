@@ -78,11 +78,20 @@ export class LibraryService {
   async initialize(): Promise<void> {
     this.isLoading.set(true);
     try {
-      await this.refreshLibrary();
-      const isCleared = localStorage.getItem('folio_demo_cleared') === 'true';
-      if (!isCleared && this.books().length === 0) {
-        await this.seedDemoLibrary();
+      // Automatically purge any pre-seeded demo/mock books from storage
+      const demoBookIds = ['book-ddia', 'book-clean-arch', 'book-sys-design', 'book-sys-perf'];
+      for (const id of demoBookIds) {
+        await this.bookRepo.deleteBook(id);
       }
+      const demoColIds = ['col-1', 'col-2', 'col-3'];
+      for (const id of demoColIds) {
+        await this.collectionRepo.deleteCollection(id);
+      }
+      for (const a of REAL_AUTHORS) {
+        await this.bookRepo.deleteAuthor?.(a.id);
+      }
+
+      await this.refreshLibrary();
 
       // Synchronize with backend if user is authenticated
       if (this.authService.isAuthenticated()) {
@@ -142,25 +151,6 @@ export class LibraryService {
     }
   }
 
-  async clearDemoLibrary(): Promise<void> {
-    const demoBookIds = ['book-ddia', 'book-clean-arch', 'book-sys-design', 'book-sys-perf'];
-    for (const id of demoBookIds) {
-      await this.bookRepo.deleteBook(id);
-    }
-    const demoColIds = ['col-1', 'col-2', 'col-3'];
-    for (const id of demoColIds) {
-      await this.collectionRepo.deleteCollection(id);
-    }
-    localStorage.setItem('folio_demo_cleared', 'true');
-    await this.refreshLibrary();
-    await this.searchService.buildIndex();
-  }
-
-  async loadDemoLibrary(): Promise<void> {
-    localStorage.removeItem('folio_demo_cleared');
-    await this.seedDemoLibrary();
-  }
-
   async refreshLibrary(): Promise<void> {
     const [booksList, authorsList, collectionsList, tagsList] = await Promise.all([
       this.bookRepo.getAllBooks(),
@@ -170,7 +160,6 @@ export class LibraryService {
     ]);
 
     const authorMap = new Map<string, Author>();
-    REAL_AUTHORS.forEach(a => authorMap.set(a.id, a));
     authorsList.forEach(a => authorMap.set(a.id, a));
 
     const enrichedBooks = booksList.map(book => {
@@ -182,8 +171,8 @@ export class LibraryService {
     });
 
     this.books.set(enrichedBooks);
-    this.authors.set(authorsList.length > 0 ? authorsList : REAL_AUTHORS);
-    this.collections.set(collectionsList.length > 0 ? collectionsList : REAL_COLLECTIONS);
+    this.authors.set(authorsList);
+    this.collections.set(collectionsList);
     this.tags.set(tagsList);
 
     // Load progress for all books

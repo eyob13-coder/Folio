@@ -90,4 +90,8 @@ export class BookRepository {
   async saveAuthor(author: Author): Promise<void> {
     await this.storage.set<Author>(STORES.AUTHORS, author.id, author);
   }
+
+  async deleteAuthor(authorId: string): Promise<void> {
+    await this.storage.delete(STORES.AUTHORS, authorId);
+  }
 }
