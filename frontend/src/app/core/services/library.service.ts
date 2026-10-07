@@ -1,4 +1,6 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
 import { BookRepository } from '../repositories/book.repository';
 import { CollectionRepository } from '../repositories/collection.repository';
@@ -6,6 +8,8 @@ import { DocumentProcessorFactory } from '../document/document-processor-factory
 import { calculateSha256 } from '../document/hashing.utils';
 import { FullTextSearchService } from '../search/search.service';
 import { SyncQueueService } from '../sync/sync-queue.service';
+import { AuthService } from './auth.service';
+import { environment } from '../../../environments/environment';
 import { Book, Author, ReadingProgress, FileType, ReadingStatus } from '../models/book.model';
 import { Collection, Tag } from '../models/collection.model';
 import { REAL_BOOKS, REAL_AUTHORS, REAL_COLLECTIONS } from '../document/sample-books.data';
@@ -29,6 +33,8 @@ export class LibraryService {
   private processorFactory = inject(DocumentProcessorFactory);
   private searchService = inject(FullTextSearchService);
   private syncQueue = inject(SyncQueueService);
+  private authService = inject(AuthService);
+  private http = inject(HttpClient);
 
   readonly books = signal<Book[]>([]);
   readonly authors = signal<Author[]>([]);
@@ -73,35 +79,86 @@ export class LibraryService {
     this.isLoading.set(true);
     try {
       await this.refreshLibrary();
-      if (this.books().length === 0) {
+      const isCleared = localStorage.getItem('folio_demo_cleared') === 'true';
+      if (!isCleared && this.books().length === 0) {
         await this.seedDemoLibrary();
-      } else {
-        // Automatically upgrade existing books to ensure real authors & SVG covers
-        for (const realBook of REAL_BOOKS) {
-          const existing = this.books().find(b => b.id === realBook.id);
-          if (existing) {
-            await this.bookRepo.updateBook(existing.id, {
-              coverDataUrl: realBook.coverDataUrl,
-              authorIds: realBook.authorIds,
-              authors: realBook.authors,
-              subtitle: realBook.subtitle,
-              description: realBook.description,
-              publisher: realBook.publisher
-            });
-          }
-        }
-        // Clear previously seeded fake progress so user starts fresh at 0 pages read
-        await this.bookRepo.deleteProgress('prog-ddia');
-        await this.bookRepo.deleteProgress('prog-clean-arch');
-        for (const author of REAL_AUTHORS) {
-          await this.bookRepo.saveAuthor(author);
-        }
-        await this.refreshLibrary();
       }
+
+      // Synchronize with backend if user is authenticated
+      if (this.authService.isAuthenticated()) {
+        await this.syncWithBackend();
+      }
+
       await this.searchService.buildIndex();
     } finally {
       this.isLoading.set(false);
     }
+  }
+
+  async syncWithBackend(): Promise<void> {
+    const token = this.authService.token();
+    const user = this.authService.currentUser();
+    if (!token || !user) return;
+
+    try {
+      const backendBooks = await firstValueFrom(
+        this.http.get<any[]>(`${environment.api.baseUrl}/books`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'X-User-Id': user.id
+          }
+        })
+      );
+
+      if (Array.isArray(backendBooks) && backendBooks.length > 0) {
+        for (const b of backendBooks) {
+          const book: Book = {
+            id: b.id,
+            title: b.title,
+            subtitle: b.subtitle,
+            description: b.description,
+            language: b.language || 'en',
+            publisher: b.publisher,
+            publicationYear: b.publicationYear,
+            pageCount: b.pageCount || 0,
+            fileType: b.fileType || 'pdf',
+            fileSize: b.fileSize || 0,
+            contentHash: b.contentHash || 'hash-' + b.id,
+            coverDataUrl: b.coverDataUrl,
+            authorIds: [],
+            collectionIds: [],
+            tags: ['synced'],
+            isFavorite: b.isFavorite || false,
+            status: b.status || 'unread',
+            createdAt: b.createdAt || new Date().toISOString(),
+            updatedAt: b.updatedAt || new Date().toISOString()
+          };
+          await this.bookRepo.saveBook(book);
+        }
+        await this.refreshLibrary();
+      }
+    } catch (err) {
+      console.warn('Backend book sync offline or skipped:', err);
+    }
+  }
+
+  async clearDemoLibrary(): Promise<void> {
+    const demoBookIds = ['book-ddia', 'book-clean-arch', 'book-sys-design', 'book-sys-perf'];
+    for (const id of demoBookIds) {
+      await this.bookRepo.deleteBook(id);
+    }
+    const demoColIds = ['col-1', 'col-2', 'col-3'];
+    for (const id of demoColIds) {
+      await this.collectionRepo.deleteCollection(id);
+    }
+    localStorage.setItem('folio_demo_cleared', 'true');
+    await this.refreshLibrary();
+    await this.searchService.buildIndex();
+  }
+
+  async loadDemoLibrary(): Promise<void> {
+    localStorage.removeItem('folio_demo_cleared');
+    await this.seedDemoLibrary();
   }
 
   async refreshLibrary(): Promise<void> {
@@ -229,6 +286,35 @@ export class LibraryService {
         await this.bookRepo.saveBook(newBook, buffer);
         await this.syncQueue.recordAction('CREATE_BOOK', 'Book', bookId, newBook);
 
+        // Sync with backend if user is authenticated
+        if (this.authService.isAuthenticated()) {
+          const token = this.authService.token();
+          const user = this.authService.currentUser();
+          if (token && user) {
+            this.http.post(`${environment.api.baseUrl}/books`, {
+              id: bookId,
+              userId: user.id,
+              title: newBook.title,
+              subtitle: newBook.subtitle,
+              description: newBook.description,
+              language: newBook.language,
+              publisher: newBook.publisher,
+              publicationYear: newBook.publicationYear,
+              pageCount: newBook.pageCount,
+              fileType: newBook.fileType,
+              fileSize: newBook.fileSize,
+              contentHash: newBook.contentHash,
+              isFavorite: newBook.isFavorite,
+              status: newBook.status
+            }, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'X-User-Id': user.id
+              }
+            }).subscribe({ error: () => {} });
+          }
+        }
+
         imported.push(newBook);
       } catch (err: any) {
         console.error(`Error importing ${file.name}:`, err);
@@ -271,6 +357,18 @@ export class LibraryService {
   async deleteBook(bookId: string): Promise<void> {
     await this.bookRepo.deleteBook(bookId);
     await this.syncQueue.recordAction('DELETE_BOOK', 'Book', bookId, { id: bookId });
+    if (this.authService.isAuthenticated()) {
+      const token = this.authService.token();
+      const user = this.authService.currentUser();
+      if (token && user) {
+        this.http.delete(`${environment.api.baseUrl}/books/${bookId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'X-User-Id': user.id
+          }
+        }).subscribe({ error: () => {} });
+      }
+    }
     await this.refreshLibrary();
     await this.searchService.buildIndex();
   }

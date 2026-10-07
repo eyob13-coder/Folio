@@ -18,17 +18,27 @@ public class BookController {
         this.bookService = bookService;
     }
 
+    private UUID resolveUserId(UUID headerUserId) {
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof String principalStr) {
+            try {
+                return UUID.fromString(principalStr);
+            } catch (IllegalArgumentException ignored) {}
+        }
+        return headerUserId != null ? headerUserId : UUID.fromString("00000000-0000-0000-0000-000000000001");
+    }
+
     @GetMapping
     public ResponseEntity<List<BookEntity>> getAllBooks(
-            @RequestHeader(value = "X-User-Id", defaultValue = "00000000-0000-0000-0000-000000000001") UUID userId) {
-        return ResponseEntity.ok(bookService.getAllBooks(userId));
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
+        return ResponseEntity.ok(bookService.getAllBooks(resolveUserId(userId)));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<BookEntity> getBookById(
             @PathVariable UUID id,
-            @RequestHeader(value = "X-User-Id", defaultValue = "00000000-0000-0000-0000-000000000001") UUID userId) {
-        return bookService.getBookById(id, userId)
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
+        return bookService.getBookById(id, resolveUserId(userId))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -36,8 +46,8 @@ public class BookController {
     @PostMapping
     public ResponseEntity<BookEntity> createBook(
             @RequestBody BookEntity book,
-            @RequestHeader(value = "X-User-Id", defaultValue = "00000000-0000-0000-0000-000000000001") UUID userId) {
-        book.setUserId(userId);
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
+        book.setUserId(resolveUserId(userId));
         BookEntity created = bookService.createBook(book);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
@@ -46,8 +56,8 @@ public class BookController {
     public ResponseEntity<BookEntity> updateBook(
             @PathVariable UUID id,
             @RequestBody BookEntity book,
-            @RequestHeader(value = "X-User-Id", defaultValue = "00000000-0000-0000-0000-000000000001") UUID userId) {
-        return bookService.updateBook(id, userId, book)
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
+        return bookService.updateBook(id, resolveUserId(userId), book)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -55,8 +65,8 @@ public class BookController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteBook(
             @PathVariable UUID id,
-            @RequestHeader(value = "X-User-Id", defaultValue = "00000000-0000-0000-0000-000000000001") UUID userId) {
-        if (bookService.deleteBook(id, userId)) {
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
+        if (bookService.deleteBook(id, resolveUserId(userId))) {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
