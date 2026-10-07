@@ -15,7 +15,7 @@ export class EpubProcessorService implements DocumentProcessor {
 
   async extractMetadata(buffer: ArrayBuffer, fileName: string): Promise<ExtractedBookMetadata> {
     try {
-      const book = ePub(buffer);
+      const book = ePub(buffer.slice(0));
       await book.ready;
       
       const meta: any = await book.loaded.metadata;
@@ -60,7 +60,7 @@ export class EpubProcessorService implements DocumentProcessor {
   async extractChunks(buffer: ArrayBuffer, bookId: string): Promise<DocumentChunk[]> {
     const chunks: DocumentChunk[] = [];
     try {
-      const book = ePub(buffer);
+      const book = ePub(buffer.slice(0));
       await book.ready;
       
       const spine = (book as any).spine;

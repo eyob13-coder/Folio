@@ -1,8 +1,12 @@
-import { Component, ElementRef, ViewChild, input, output, signal, effect, OnDestroy } from '@angular/core';
+import { Component, ElementRef, ViewChild, input, output, signal, effect, OnDestroy, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Book } from '../../../core/models/book.model';
 import * as pdfjsLib from 'pdfjs-dist';
 import { LucideAngularModule, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-angular';
+
+if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/assets/pdfjs/pdf.worker.min.mjs';
+}
 
 @Component({
   selector: 'app-pdf-reader',
@@ -50,8 +54,8 @@ import { LucideAngularModule, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 
     </div>
   `
 })
-export class PdfReaderComponent implements OnDestroy {
-  @ViewChild('pdfCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
+export class PdfReaderComponent implements AfterViewInit, OnDestroy {
+  @ViewChild('pdfCanvas') canvasRef?: ElementRef<HTMLCanvasElement>;
 
   readonly book = input.required<Book>();
   readonly fileData = input<ArrayBuffer | Blob | null>(null);
@@ -65,6 +69,9 @@ export class PdfReaderComponent implements OnDestroy {
   readonly scale = signal<number>(1.2);
 
   private pdfDoc: any = null;
+  private isViewReady = false;
+  private currentRenderTask: any = null;
+
   readonly PrevIcon = ChevronLeft;
   readonly NextIcon = ChevronRight;
   readonly ZoomInIcon = ZoomIn;
@@ -79,22 +86,40 @@ export class PdfReaderComponent implements OnDestroy {
     });
   }
 
+  ngAfterViewInit(): void {
+    this.isViewReady = true;
+    if (this.pdfDoc) {
+      this.renderCurrentPage();
+    }
+  }
+
   async loadPdf(data: ArrayBuffer | Blob): Promise<void> {
     try {
       const buffer = data instanceof Blob ? await data.arrayBuffer() : data;
-      const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
+      const dataCopy = new Uint8Array(buffer.slice(0));
+      const loadingTask = pdfjsLib.getDocument({ data: dataCopy });
       this.pdfDoc = await loadingTask.promise;
       this.totalPages.set(this.pdfDoc.numPages);
       this.totalPagesChange.emit(this.pdfDoc.numPages);
       this.currentPage.set(this.initialPage() || 1);
-      await this.renderCurrentPage();
+      if (this.isViewReady) {
+        await this.renderCurrentPage();
+      }
     } catch (err) {
       console.error('Failed to load PDF in reader:', err);
     }
   }
 
   async renderCurrentPage(): Promise<void> {
-    if (!this.pdfDoc || !this.canvasRef) return;
+    if (!this.pdfDoc || !this.canvasRef?.nativeElement) return;
+    
+    if (this.currentRenderTask) {
+      try {
+        await this.currentRenderTask.cancel();
+      } catch (_) {}
+      this.currentRenderTask = null;
+    }
+
     try {
       const page = await this.pdfDoc.getPage(this.currentPage());
       const viewport = page.getViewport({ scale: this.scale() });
@@ -104,9 +129,14 @@ export class PdfReaderComponent implements OnDestroy {
 
       canvas.width = viewport.width;
       canvas.height = viewport.height;
-      await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
-    } catch (err) {
-      console.warn('Page render cancelled or error:', err);
+      
+      this.currentRenderTask = page.render({ canvasContext: ctx, viewport, canvas } as any);
+      await this.currentRenderTask.promise;
+      this.currentRenderTask = null;
+    } catch (err: any) {
+      if (err?.name !== 'RenderingCancelledException') {
+        console.warn('Page render cancelled or error:', err);
+      }
     }
   }
 
@@ -133,6 +163,10 @@ export class PdfReaderComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.currentRenderTask) {
+      try { this.currentRenderTask.cancel(); } catch (_) {}
+      this.currentRenderTask = null;
+    }
     this.pdfDoc?.destroy?.();
   }
 }

@@ -4,7 +4,7 @@ import { DocumentChunk, FileType } from '../models/book.model';
 import * as pdfjsLib from 'pdfjs-dist';
 
 if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/assets/pdfjs/pdf.worker.min.mjs';
 }
 
 @Injectable({
@@ -19,7 +19,8 @@ export class PdfProcessorService implements DocumentProcessor {
 
   async extractMetadata(buffer: ArrayBuffer, fileName: string): Promise<ExtractedBookMetadata> {
     try {
-      const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
+      const dataCopy = new Uint8Array(buffer.slice(0));
+      const loadingTask = pdfjsLib.getDocument({ data: dataCopy });
       const pdf = await loadingTask.promise;
       const meta = await pdf.getMetadata().catch(() => null);
       
@@ -87,7 +88,8 @@ export class PdfProcessorService implements DocumentProcessor {
   async extractChunks(buffer: ArrayBuffer, bookId: string): Promise<DocumentChunk[]> {
     const chunks: DocumentChunk[] = [];
     try {
-      const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
+      const dataCopy = new Uint8Array(buffer.slice(0));
+      const loadingTask = pdfjsLib.getDocument({ data: dataCopy });
       const pdf = await loadingTask.promise;
       const numPages = Math.min(pdf.numPages, 100);
 

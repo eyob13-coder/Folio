@@ -1,4 +1,4 @@
-import { Component, ElementRef, ViewChild, input, output, signal, effect, OnDestroy } from '@angular/core';
+import { Component, ElementRef, ViewChild, input, output, effect, OnDestroy, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Book } from '../../../core/models/book.model';
 import ePub from 'epubjs';
@@ -32,8 +32,8 @@ import { LucideAngularModule, ChevronLeft, ChevronRight } from 'lucide-angular';
     </div>
   `
 })
-export class EpubReaderComponent implements OnDestroy {
-  @ViewChild('epubViewer') viewerRef!: ElementRef<HTMLDivElement>;
+export class EpubReaderComponent implements AfterViewInit, OnDestroy {
+  @ViewChild('epubViewer') viewerRef?: ElementRef<HTMLDivElement>;
 
   readonly book = input.required<Book>();
   readonly fileData = input<ArrayBuffer | Blob | null>(null);
@@ -42,6 +42,8 @@ export class EpubReaderComponent implements OnDestroy {
 
   private rendition: any = null;
   private epubBook: any = null;
+  private isViewReady = false;
+  private pendingData: ArrayBuffer | Blob | null = null;
 
   readonly PrevIcon = ChevronLeft;
   readonly NextIcon = ChevronRight;
@@ -49,16 +51,30 @@ export class EpubReaderComponent implements OnDestroy {
   constructor() {
     effect(() => {
       const data = this.fileData();
-      if (data && this.viewerRef) {
-        this.renderEpub(data);
+      if (data) {
+        if (this.isViewReady && this.viewerRef?.nativeElement) {
+          this.renderEpub(data);
+        } else {
+          this.pendingData = data;
+        }
       }
     });
   }
 
+  ngAfterViewInit(): void {
+    this.isViewReady = true;
+    if (this.pendingData) {
+      const data = this.pendingData;
+      this.pendingData = null;
+      this.renderEpub(data);
+    }
+  }
+
   async renderEpub(data: ArrayBuffer | Blob): Promise<void> {
+    if (!this.viewerRef?.nativeElement) return;
     try {
       const buffer = data instanceof Blob ? await data.arrayBuffer() : data;
-      this.epubBook = ePub(buffer);
+      this.epubBook = ePub(buffer.slice(0));
       await this.epubBook.ready;
 
       this.rendition = this.epubBook.renderTo(this.viewerRef.nativeElement, {

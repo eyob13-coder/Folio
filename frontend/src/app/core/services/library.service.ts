@@ -220,12 +220,18 @@ export class LibraryService {
         // Check for duplicate SHA-256
         const existing = await this.bookRepo.getBookByHash(contentHash);
         if (existing) {
+          const existingBinary = await this.bookRepo.getBookFileData(existing.id);
+          if (!existingBinary) {
+            await this.bookRepo.saveBook(existing, file);
+            imported.push(existing);
+            continue;
+          }
           dupes.push(file.name);
           continue;
         }
 
         // Extract metadata and cover
-        const metadata = await processor.extractMetadata(buffer, file.name);
+        const metadata = await processor.extractMetadata(buffer.slice(0), file.name);
 
         // Ensure authors exist
         const authorIds: string[] = [];
@@ -268,11 +274,11 @@ export class LibraryService {
         };
 
         // Extract searchable chunks in background
-        const chunks = await processor.extractChunks(buffer, bookId);
+        const chunks = await processor.extractChunks(buffer.slice(0), bookId);
         await this.bookRepo.saveChunks(chunks);
 
-        // Save Book & File Binary
-        await this.bookRepo.saveBook(newBook, buffer);
+        // Save Book & File Binary (store the Blob directly to prevent detachment)
+        await this.bookRepo.saveBook(newBook, file);
         await this.syncQueue.recordAction('CREATE_BOOK', 'Book', bookId, newBook);
 
         // Sync with backend if user is authenticated
